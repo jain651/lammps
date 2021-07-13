@@ -1,0 +1,12 @@
+# Settings for libraries used by specific LAMMPS packages
+# this file is auto-edited when those packages are included/excluded
+
+PKG_INC =   -I../../lib/smd/includelink -I../../lib/scafacos/includelink -I../../lib/qmmm -I../../lib/plumed/includelink -DLMP_USER_OMP -I../../lib/mesont -DLMP_USER_INTEL -I../../lib/h5md/include -I../../lib/colvars -I../../lib/awpmd/ivutils/include -I../../lib/awpmd/systems/interact -I../../lib/atc -I../../lib/voronoi/includelink -DLMP_PYTHON -I../../lib/poems -I../../lib/mscg/includelink -DLMP_MPIIO -I../../lib/message/cslib/src -I../../lib/latte/includelink -DLMP_KOKKOS -I../../lib/awpmd/ivutils/include -I../../lib/awpmd/systems/interact 
+PKG_PATH =  -L../../lib/vtk -L../../lib/scafacos/liblink -L../../lib/qmmm$(LIBOBJDIR) -L../../lib/mesont -L../../lib/h5md -L../../lib/colvars$(LIBOBJDIR) -L../../lib/awpmd -L../../lib/atc -L../../lib/voronoi/liblink -L../../lib/poems -L../../lib/mscg/liblink -L../../lib/message/cslib/src -L../../lib/latte/liblink -L../../lib/gpu 
+PKG_LIB =   `grep Libs: ../../lib/scafacos/liblink/pkgconfig/scafacos.pc | cut -d " " -f 2-` -lqmmm -lmesont -lch5md -lcolvars -lawpmd -latc -lvoro++ -lpoems -lmscg -lmessage $(KOKKOS_LIBS) -lgpu 
+PKG_CPP_DEPENDS = $(KOKKOS_CPP_DEPENDS) 
+PKG_LINK_DEPENDS = $(KOKKOS_LINK_DEPENDS) 
+
+PKG_SYSINC =  $(vtk_SYSINC) $(user-smd_SYSINC) $(quip_SYSINC) $(qmmm_SYSINC) $(plumed_SYSINC) $(netcdf_SYSINC) $(molfile_SYSINC) $(mesont_SYSINC) $(h5md_SYSINC) $(colvars_SYSINC) $(user-atc_SYSINC) $(voronoi_SYSINC) $(python_SYSINC) $(mscg_SYSINC) $(message_SYSINC) $(latte_SYSINC) $(KOKKOS_CPPFLAGS) $(KOKKOS_CXXFLAGS) $(kim_SYSINC) $(gpu_SYSINC) $(compress_SYSINC) 
+PKG_SYSLIB =  $(vtk_SYSLIB) $(user-smd_SYSLIB) $(quip_SYSLIB) $(qmmm_SYSLIB) $(plumed_SYSLIB) $(netcdf_SYSLIB) $(molfile_SYSLIB) $(mesont_SYSLIB) $(h5md_SYSLIB) $(colvars_SYSLIB) $(user-awpmd_SYSLIB) $(user-atc_SYSLIB) $(voronoi_SYSLIB) $(python_SYSLIB) $(mscg_SYSLIB) $(message_SYSLIB) $(latte_SYSLIB) $(KOKKOS_LDFLAGS) $(kim_SYSLIB) $(gpu_SYSLIB) $(compress_SYSLIB) 
+PKG_SYSPATH = $(user-smd_SYSPATH) $(quip_SYSPATH) $(qmmm_SYSPATH) $(plumed_SYSPATH) $(netcdf_SYSPATH) $(molfile_SYSPATH) $(mesont_SYSPATH) $(h5md_SYSPATH) $(colvars_SYSPATH) $(user-awpmd_SYSPATH) $(user-atc_SYSPATH) $(voronoi_SYSPATH) $(python_SYSPATH) $(mscg_SYSPATH) $(message_SYSPATH) $(latte_SYSPATH) $(kim_SYSPATH) $(gpu_SYSPATH) $(compress_SYSPATH) 

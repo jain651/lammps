@@ -1,0 +1,105 @@
+# HTR-10 geometry
+
+thermo_modify	flush yes
+units 	   si
+variable   PI equal 3.141592653589
+variable   gravity equal 9.81
+variable   seed equal 14314
+
+###############################################
+# Geometry-related parameters
+###############################################
+
+variable    xlo equal -1.5
+variable	xhi equal  1.5
+variable	ylo equal -1.5
+variable	yhi equal  1.5
+variable	zlo equal  0
+
+variable	zinsert equal 300.0
+variable	zhi equal 5.0
+
+variable    cylR equal 1.5
+
+################################################
+# Particle sizes
+################################################
+
+variable    pradius equal 0.03
+variable    pdiameter equal 2*${pradius}
+variable    pvol equal 4/3*PI*${pradius}^3
+variable 	skin equal ${pradius}
+
+###############################################
+# Granular contact parameters
+###############################################
+
+variable    tau equal 0.0782
+variable    dt  equal 1e-4*${tau}
+
+variable    pmass equal 0.21
+variable    pdens equal ${pmass}/${pvol}
+variable    kn equal 2e5*${pmass}*${gravity}/${pdiameter}
+variable    kt equal 2.0/7.0*${kn}
+variable    mu equal 0.7
+variable    gamma_n equal 158.11/${tau}
+variable    gamma_t equal 0
+
+timestep ${dt}
+
+###############################################
+
+variable	dumpfreq equal 10000
+variable	logfreq equal 10000
+
+newton 		off
+atom_style	sphere
+
+boundary	p p p
+
+region		boxreg block ${xlo} ${xhi} ${ylo} ${yhi} ${zlo} ${zinsert}
+create_box	1 boxreg
+
+pair_style	gran/hooke &
+		${kn} ${kt} ${gamma_n} ${gamma_t} ${mu} 1
+pair_coeff	* *
+
+neighbor    ${skin} bin
+thermo      ${logfreq}
+
+comm_style  brick
+# comm_modify mode multi group all vel yes
+comm_modify mode single group all vel yes
+balance     1.1 shift xyz 20 1.1
+fix         bal all balance 10000 1.1 shift xyz 20 1.01
+
+## output specifications
+dump 1 all custom 1000000 displacement.*.xyz x y z ix iy iz radius
+
+## define the geometry
+region cylvessel cylinder z 0 0 ${cylR} ${zlo} ${zinsert} side in units box
+
+fix	        grav all gravity ${gravity} vector 0 0 -1
+fix         1 all nve/sphere
+
+fix		    wallInt  all wall/gran/region hooke &
+            ${kn} ${kt} ${gamma_n} ${gamma_t} ${mu} 1 region cylvessel
+
+thermo_style   custom step cpu atoms ke
+thermo_modify  flush yes lost warn
+
+## Insert particles using pour & settle the bed
+fix         insertion all pour 112500 1 42424 region cylvessel &
+			diam one ${pdiameter} dens ${pdens} ${pdens}
+run 5000000
+
+## contract the domain
+region      cylvessel delete
+
+region      cylvessel cylinder z 0 0 ${cylR} 0 ${zhi} side in units box
+
+## Resize the domain and simulation box
+change_box  all z final ${zlo} ${zhi}
+
+## Run more histories to settle the bed more
+run 5000000

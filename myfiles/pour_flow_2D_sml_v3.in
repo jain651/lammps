@@ -1,0 +1,50 @@
+# Geometry-related parameters
+variable        xlo equal  0
+variable        xhi equal  10
+variable        ylo equal  0
+variable        pour_ylo equal  50
+variable        yhi equal  53
+variable        zlo equal -0.5
+variable        zhi equal  0.5
+# Particle sizes
+variable        particle_type equal 2
+variable        d_big equal 1
+variable        d_sml equal 0.5
+variable        prob_big equal 0.7
+variable        prob_sml equal 1-${prob_big}
+# Simulation variables
+variable        num_particles equal 10000
+variable        seed equal 1
+variable        target_vf equal 0.9
+variable        max_iters equal 10000
+variable        max_steps equal 2000000
+variable        out_freq equal ${max_steps}/20
+variable        dt equal 0.0001
+#####################################################################
+# Pour granular particles into 2d container
+dimension		2
+atom_style		sphere
+boundary		f fm p
+newton			off
+comm_modify		vel yes
+region			reg block ${xlo} ${xhi} ${ylo} ${yhi} ${zlo} ${zhi} units box
+create_box		1 reg
+neighbor		0.2 bin
+neigh_modify	delay 0
+pair_style  	gran/hertz/history 400000.0 NULL 100.0 NULL 0.5 0
+pair_coeff		* *
+timestep		${dt}
+fix         	1 all nve/sphere
+fix				2 all gravity 1.0 spherical 0.0 -180.0
+fix				xwalls all wall/gran hertz/history 4000.0 NULL 100.0 NULL 0 1 xplane ${xlo} ${xhi}
+fix				ywalls all wall/gran hertz/history 4000.0 NULL 100.0 NULL 0 1 yplane ${ylo} ${yhi}
+region      	slab block ${xlo} ${xhi} ${pour_ylo} ${yhi} ${zlo} ${zhi} units box
+fix         	ins all pour ${num_particles} 1 ${seed} vol ${target_vf} ${max_iters} diam poly ${particle_type} ${d_big} ${prob_big} ${d_sml} ${prob_sml} region slab
+fix         	3 all enforce2d
+compute			1 all erotate/sphere
+thermo_style	custom step atoms ke c_1 vol
+thermo			1000
+thermo_modify	lost ignore norm no
+compute_modify	thermo_temp dynamic/dof yes
+dump    		1 all custom ${out_freq} pour_flow_2d_sml_v3_out.* x y z radius
+run				${max_steps}

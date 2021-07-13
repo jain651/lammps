@@ -1,0 +1,128 @@
+
+variable   PI equal 3.141592653589
+variable   gravity equal 9.81
+variable   seed equal 3
+
+################################################
+# Particle sizes
+################################################
+variable    r_big equal 0.1
+variable    r_sml equal 0.05
+variable    prob_big equal 0.7
+variable	num_circles equal 10000
+
+variable    d_big equal 2*${r_big}
+variable    v_big equal 4/3*PI*${r_big}^3
+variable    skin_big equal ${r_big}
+variable    d_sml equal 2*${r_sml}
+variable    v_sml equal 4/3*PI*${r_sml}^3
+variable    skin_sml equal ${r_sml}
+variable    prob_sml equal 1-${prob_big}
+
+###############################################
+# Geometry-related parameters
+###############################################
+variable    xlo equal -0.5+${r_big}
+variable	xhi equal  0.5-${r_big}
+variable	ylo equal -5.0+${r_big}
+variable	yhi equal  5.0-${r_big}
+variable	zlo equal -0.2+${r_big}
+variable	zhi equal  0.2-${r_big}
+
+###############################################
+# Granular contact parameters
+###############################################
+variable    tau equal 0.0782
+variable    dt  equal 1e-4*${tau}
+
+variable    pmass equal 0.21
+variable    pdens equal ${pmass}/${v_big}
+
+variable    kn equal 2e5*${pmass}*${gravity}/${d_big}
+variable    kt equal 2.0/7.0*${kn}
+variable    mu equal 0.7
+variable    gamma_n equal 158.11/${tau}
+variable    gamma_t equal 0
+
+###############################################
+# Execution parameters
+###############################################
+variable	t_end equal 100000
+variable	dumpfreq equal ${t_end}/2
+variable	logfreq equal ${t_end}/2
+
+###############################################
+# Commands to run
+###############################################
+
+dimension   2
+units 	    si
+newton 		off
+atom_style	sphere
+thermo_modify	flush yes
+
+boundary	ff fs pp
+
+region		my2Dtube block ${xlo} ${xhi} ${ylo} ${yhi} ${zlo} ${zhi} units box
+create_box	2 my2Dtube
+
+pair_style	none
+# bond_style	none
+
+timestep 	${dt}
+
+fix 		1 all enforce2d
+fix         2 all nve/sphere
+# fix 		noforce all nve/noforce
+fix	        grav all gravity ${gravity} vector 0 -1 0
+
+region		my2Dtube2 block ${xlo} ${xhi} ${ylo} ${yhi} ${zlo} ${zhi} units box open 6
+fix			3 all wall/gran/region hertz/history 200.0 200.0 5.0 5.0 0.5 1 region my2Dtube2
+
+region		my2Dtube3 block ${xlo} ${xhi} ${ylo} ${yhi} ${zlo} ${zhi} units box
+
+## Insert particles using pour & settle the bed
+fix         pour1 all pour ${num_circles} 2 ${seed} vol 10 1000 region my2Dtube3 diam poly 2 ${d_big} ${prob_big} ${d_sml} ${prob_sml} dens ${pdens} ${pdens} vel 0 1 0
+
+compute		1 all ke
+compute		2 all erotate/sphere
+
+thermo_style	custom step atoms c_1 c_2
+thermo		100
+thermo_modify	lost warn norm no
+
+## output specifications
+dump		id all atom 500 circle_in_cyl.pour
+dump 1 all custom ${dumpfreq} circle_in_cyl.* x y z radius
+
+run 		${t_end}
+
+###############################################
+# Additional commands
+###############################################
+# ## contract the domain
+# region      my2Dtube delete
+# region      my2Dtube block -8 8 -8 8 -0.04 0.04 side in units box
+#
+# ## Run more histories to settle the bed more
+# run 1000
+## define the geometry
+# region cyl_2D block -2 2 -8 8 -0.04 0.04 side in units box
+# pair_style	gran/hooke &
+# 		${kn} ${kt} ${gamma_n} ${gamma_t} ${mu} 1
+# pair_coeff	* *
+# pair_style lj/cut 10
+# pair_coeff 1 1 0.01006418 3.3952
+# neighbor    ${skin_big} bin
+# thermo      ${logfreq}
+# comm_style  brick
+# comm_modify mode multi group all vel yes
+# balance     1.1 shift xyz 20 1.1
+# fix         bal all balance 10000 1.1 shift xyz 20 1.01
+# fix         1 all nve/sphere
+# fix		    wallInt  all wall/gran/region hooke &
+#             ${kn} ${kt} ${gamma_n} ${gamma_t} ${mu} 1 region my2Dtube
+# fix         insertion all pour 112500 1 42424 region my2Dtube &
+# 			diam one ${d_big} dens ${pdens} ${pdens}
+# thermo_style   custom step cpu atoms ke
+# thermo_modify  flush yes lost warn
