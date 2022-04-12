@@ -1,0 +1,60 @@
+# lmp_mpi -in beam_bending2d.in
+# Particle sizes
+variable num_dia equal 5
+variable d_GC equal 1 # diameter for glassy carbon
+variable d_mat1 equal 0.1
+variable d_mat2 equal 0.09
+variable d_mat3 equal 0.08
+variable d_mat4 equal 0.07
+variable prob_GC equal 0.01184
+variable prob_mat1 equal 0.01941
+variable prob_mat2 equal 0.02571
+variable prob_mat3 equal 0.03520
+variable prob_mat4 equal 0.90784
+
+# Geometry-related parameters
+variable xlo equal 0
+variable xhi equal 9.2
+variable ylo equal 0
+variable pour_ylo equal 40
+variable yhi equal 43
+# variable zlo equal -${d_mat10}/2
+# variable zhi equal ${d_mat10}/2
+variable zlo equal -${d_mat4}/2
+variable zhi equal ${d_mat4}/2
+# Simulation variables
+variable num_particles equal 1000000
+variable seed equal 200
+variable target_vf equal 0.95
+variable max_iters equal 10000
+variable max_steps equal 800000
+variable out_freq equal ${max_steps}/200
+variable dt equal 0.001
+#####################################################################
+# Pour granular particles into 2d container
+dimension 2
+atom_style sphere
+boundary f fm p
+newton off
+comm_modify vel yes
+region reg block ${xlo} ${xhi} ${ylo} ${yhi} ${zlo} ${zhi} units box
+create_box 1 reg
+neighbor 0.2 bin
+neigh_modify delay 0
+pair_style gran/hertz/history 400000.0 NULL 100.0 NULL 0.5 0
+pair_coeff * *
+timestep ${dt}
+fix 1 all nve/sphere
+fix 2 all gravity 1.0 spherical 0.0 -180.0
+fix xwalls all wall/gran hertz/history 4000.0 NULL 100.0 NULL 0 1 xplane ${xlo} ${xhi}
+fix ywalls all wall/gran hertz/history 4000.0 NULL 100.0 NULL 0 1 yplane ${ylo} ${yhi}
+region slab block ${xlo} ${xhi} ${pour_ylo} ${yhi} ${zlo} ${zhi} units box
+fix ins all pour ${num_particles} 1 ${seed} vol ${target_vf} ${max_iters} diam poly ${num_dia} ${d_GC} ${prob_GC} ${d_mat1} ${prob_mat1} ${d_mat2} ${prob_mat2} ${d_mat3} ${prob_mat3} ${d_mat4} ${prob_mat4} region slab
+fix 3 all enforce2d
+compute 1 all erotate/sphere
+thermo_style custom step atoms ke c_1 vol
+thermo 1000
+thermo_modify lost ignore norm no
+compute_modify thermo_temp dynamic/dof yes
+dump 1 all custom ${out_freq} out/beam_bending2d_v2_out.* x y z radius
+run ${max_steps}
