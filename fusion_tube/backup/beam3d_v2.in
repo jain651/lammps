@@ -1,0 +1,126 @@
+# mpirun -np 4 lmp_mpi -in beam3d_v2.in
+# Particle sizes
+# variable num_dia equal 5
+# variable d_GC equal 1 # diameter for glassy carbon
+# variable d_mat1 equal 0.1
+# variable d_mat2 equal 0.09
+# variable d_mat3 equal 0.08
+# variable d_mat4 equal 0.07
+# variable prob_GC equal 0.01184
+# variable prob_mat1 equal 0.01941
+# variable prob_mat2 equal 0.02571
+# variable prob_mat3 equal 0.03520
+# variable prob_mat4 equal 0.90784
+
+variable num_dia equal 1
+variable d_GC equal 1 # diameter for glassy carbon
+variable prob_GC equal 1
+#variable d_mat1 equal 0.3
+#variable d_mat2 equal 0.2
+#variable prob_GC equal 0.09187
+#variable prob_mat1 equal 0.06094
+#variable prob_mat2 equal 0.84719
+
+# Geometry-related parameters
+variable center_x equal 0
+variable center_y equal 0
+variable radius equal 4.6
+variable axislo equal 0
+variable pour_axislo equal 3
+variable axishi equal 4
+
+# Simulation variables
+variable num_particles equal 1000000
+variable seed equal 20
+variable target_vf equal 1.0
+variable max_iters equal 10000
+variable max_steps equal 8000000
+variable out_freq equal ${max_steps}/200
+variable dt equal 0.0001
+
+#####################################################################
+
+## Pour granular particles into 3d container
+atom_style sphere
+
+## boundary conditions
+boundary p p f
+# boundary f fm p
+newton off
+comm_modify vel yes
+
+## define a domain named 'reg'
+region reg cylinder z ${center_x} ${center_y} ${radius} ${axislo} ${axishi}
+
+## define a simulation domain using region 'reg' and specify 1 particle type
+create_box 1 reg
+
+## set neighbor skin distance to 0.2 for all spheres. Spheres those are close enough (≤0.2) are stored in the neighbor list
+neighbor 0.2 bin
+
+# this command ensures the neighbor list is checked every step of integration for new neighbors
+neigh_modify delay 0
+
+# Particle interaction: Hertzian contact, modulus=200.0, damping=5.0, history-dependent friction with coefficient 0.5
+pair_style gran/hertz/history 400000.0 NULL 100.0 NULL 0.5 0
+pair_coeff * *
+
+# the time of each integration step is dt=0.01 while the unit of time is 1 by default.
+timestep ${dt}
+
+# define constant number/volumn/energy integration for sphere, i.e. F=ma
+# the name of this command is called ‘1’ and it is applied to all particles.
+fix 1 all nve/sphere
+
+# add gravity of magnitude 1.0 and in -z direction to all particles, command name is ‘2’
+fix 2 all gravity 1.0 spherical 0.0 -180.0
+
+# define a cylinder region named ‘reg2’
+# the ‘open 2’ removes the top flat face (+z face) of the cylinder, so it is open to hold particles
+region reg2 cylinder z ${center_x} ${center_y} ${radius} ${pour_axislo} ${axishi} units box open 1
+
+# define a wall to interact with particles using predefined region ‘reg2’
+# The force law of the wall is specified in the same way as particle interaction. Command name is ‘3’
+fix 3 all wall/gran/region hertz/history 200.0 200.0 5.0 5.0 0.5 1 region reg2
+# fix zcylinder all wall/gran hooke 100000.0 20000.0 50.0 30.0 0.5 1 zcylinder ${radius}
+# fix zcylinder all wall/gran hertz/history 4000.0 NULL 100.0 NULL 0 1 zcylinder ${radius}
+region reg3 cylinder z ${center_x} ${center_y} ${radius} ${pour_axislo} ${axishi}
+
+# Pour particles randomly. It pours 60 particles of one type (type 1). Random seed=1 (positive integer). Volume fraction
+# of the pouring 0.13, and it tries upto 50 times for each particle to be inserted without overlapping with existing particles.
+# Particles are insert in ‘reg3’, and the initial velocity is 0≤Vx≤0, 0≤Vy≤0 and Vz=-3. The command name is ‘ins’.
+fix ins all pour ${num_particles} 1 ${seed} vol ${target_vf} ${max_iters} diam poly ${num_dia} ${d_GC} ${prob_GC} region reg3 vel 0 0 0 0 -3
+# fix ins all pour ${num_particles} 1 ${seed} vol ${target_vf} ${max_iters} diam poly ${num_dia} ${d_GC} ${prob_GC} ${d_mat1} ${prob_mat1} ${d_mat2} ${prob_mat2} region slab
+# fix ins all pour ${num_particles} 1 ${seed} vol ${target_vf} ${max_iters} diam poly ${num_dia} ${d_GC} ${prob_GC} ${d_mat1} ${prob_mat1} ${d_mat2} ${prob_mat2} ${d_mat3} ${prob_mat3} ${d_mat4} ${prob_mat4} region slab
+# fix ins all pour 60 1 1 vol 0.13 50 region reg3 vel 0 0 0 0 -3
+
+# calculate total kinetic energy due to translation over all particles, computation name is ‘1’
+compute 1 all ke
+
+# calculate total kinetic energy due to rotation over all particles, computation name is ‘2’
+compute 2 all erotate/sphere
+
+# specify run-time output items: integration step, number of particles, the value of computation ‘1’ and ‘2’
+thermo_style custom step atoms c_1 c_2
+# thermo_style custom step atoms ke c_1 vol
+
+# output these items every 100 step
+thermo 1000
+
+# display a warning it particle is lost (e.g. move out of a fixed simulation box)
+# do not normalize extensive values (such as ‘1’ and ‘2’) by the number of particles
+thermo_modify lost warn norm no
+# thermo_modify lost ignore norm no
+
+compute_modify thermo_temp dynamic/dof yes
+
+# output a snapshot (image) of the simulation every 50 step. The output image name is pour_*.jpg, where * is the
+# current simulation step. Zoom the view by a factor of 1.8
+# particle color follows particle type. In this case, all particles are of type 1, and the color of type 1 is red by default.
+# drawing particle diameter follows physical particle diameter. In this case, all particles have diameter 1.
+dump 2 all image 40000 out/beam3d_v2_*.jpg type diameter zoom 1
+
+dump 1 all custom ${out_freq} out/beam3d_v2_out.* x y z radius
+
+# last command: integrate the equation of motion (F=ma) for 1500 step
+run ${max_steps}
