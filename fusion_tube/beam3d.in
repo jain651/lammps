@@ -1,20 +1,20 @@
-# mpirun -np 4 lmp_mpi -in beam3d_v2.in
+# mpirun -np 4 lmp_mpi -in beam3d.in
 # Particle sizes
 variable num_dia equal 3
 variable d_GC equal 1 # diameter for glassy carbon
 variable d_mat1 equal 0.3
 variable d_mat2 equal 0.2
-variable prob_GC equal 0.09187
-variable prob_mat1 equal 0.06094
-variable prob_mat2 equal 0.84719
+variable prob_GC equal 0.11444 #70%
+variable prob_mat1 equal 0.27248 #15%
+variable prob_mat2 equal 0.61308 #15%
 
 # Geometry-related parameters
 variable center_x equal 0
 variable center_y equal 0
-variable pour_radius equal 2
+variable pour_radius equal 4.6
 variable radius equal ${pour_radius}+1
 variable zlo equal 0
-variable zpour equal 15
+variable zpour equal 50
 variable zhi equal ${zpour}+2
 
 # Simulation variables
@@ -22,7 +22,7 @@ variable num_particles equal 1000000
 variable seed equal 1
 variable target_vf equal 1.0
 variable max_iters equal 500
-variable max_steps equal 5000
+variable max_steps equal 50000
 variable out_freq equal ${max_steps}/50
 variable dt equal 0.01
 #####################################################################
@@ -76,7 +76,7 @@ region reg3 cylinder z ${center_x} ${center_y} ${pour_radius} ${zpour} ${zhi} un
 # Pour particles randomly. It pours 60 particles of one type (type 1). Random seed=1 (positive integer). Volume fraction
 # of the pouring 0.13, and it tries upto 50 times for each particle to be inserted without overlapping with existing particles.
 # Particles are insert in ‘reg3’, and the initial velocity is 0≤Vx≤0, 0≤Vy≤0 and Vz=-3. The command name is ‘ins’.
-fix ins all pour ${num_particles} 1 ${seed} vol ${target_vf} ${max_iters} diam poly ${num_dia} ${d_GC} ${prob_GC} ${d_mat1} ${prob_mat1} ${d_mat2} ${prob_mat2} region reg3 vel 0 0 0 0 -3
+fix ins all pour ${num_particles} 1 ${seed} vol ${target_vf} ${max_iters} diam poly ${num_dia} ${d_GC} ${prob_GC} ${d_mat1} ${prob_mat1} ${d_mat2} ${prob_mat2} region reg3 vel 0 10 0 10 -0.1
 
 # calculate total kinetic energy due to translation over all particles, computation name is ‘1’
 compute 1 all ke
@@ -94,15 +94,16 @@ thermo ${out_freq}
 # do not normalize extensive values (such as ‘1’ and ‘2’) by the number of particles
 thermo_modify lost warn norm no
 
-# minimizer type
-min_style cg
+# # minimizer type
+# min_style cg
+# delete_atoms overlap 10.3 all all
 
 # output a snapshot (image) of the simulation every 50 step. The output image name is pour_*.jpg, where * is the
 # current simulation step. Zoom the view by a factor of 1.8
 # particle color follows particle type. In this case, all particles are of type 1, and the color of type 1 is red by default.
 # drawing particle diameter follows physical particle diameter. In this case, all particles have diameter 1.
-dump 1 all custom ${out_freq} out/beam3d_*.csv x y z radius
-dump 2 all image ${out_freq} out/beam3d_*.jpg type diameter zoom 1.8
+dump 1 all custom ${out_freq} out/beam3d_out.* x y z radius
+# dump 2 all image ${out_freq} out/beam3d_*.jpg type diameter zoom 1.8
 
 # last command: integrate the equation of motion (F=ma) for 1500 step
 run ${max_steps}
