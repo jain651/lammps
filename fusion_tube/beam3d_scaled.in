@@ -1,20 +1,23 @@
 # mpirun -np 4 lmp_mpi -in beam3d_v2.in
 # Particle sizes
+# variable num_dia equal 1
+# variable d_GC equal 0.12 # diameter for glassy carbon
+# variable prob_GC equal 1
 variable num_dia equal 3
-variable d_GC equal 1 # diameter for glassy carbon
-variable d_mat1 equal 0.3
-variable d_mat2 equal 0.2
-variable prob_GC equal 0.09187
-variable prob_mat1 equal 0.06094
-variable prob_mat2 equal 0.84719
+variable d_GC equal 0.12 # diameter for glassy carbon
+variable d_mat1 equal 0.042
+variable d_mat2 equal 0.030
+variable prob_GC equal 0.06037
+variable prob_mat1 equal 0.01945
+variable prob_mat2 equal 0.92018
 
 # Geometry-related parameters
 variable center_x equal 0
 variable center_y equal 0
-variable pour_radius equal 2
+variable pour_radius equal 0.552
 variable radius equal ${pour_radius}+1
 variable zlo equal 0
-variable zpour equal 15
+variable zpour equal 4.8
 variable zhi equal ${zpour}+2
 
 # Simulation variables
@@ -76,6 +79,7 @@ region reg3 cylinder z ${center_x} ${center_y} ${pour_radius} ${zpour} ${zhi} un
 # Pour particles randomly. It pours 60 particles of one type (type 1). Random seed=1 (positive integer). Volume fraction
 # of the pouring 0.13, and it tries upto 50 times for each particle to be inserted without overlapping with existing particles.
 # Particles are insert in ‘reg3’, and the initial velocity is 0≤Vx≤0, 0≤Vy≤0 and Vz=-3. The command name is ‘ins’.
+# fix ins all pour ${num_particles} 1 ${seed} vol ${target_vf} ${max_iters} diam poly ${num_dia} ${d_GC} ${prob_GC} region reg3 vel 0 0 0 0 -3
 fix ins all pour ${num_particles} 1 ${seed} vol ${target_vf} ${max_iters} diam poly ${num_dia} ${d_GC} ${prob_GC} ${d_mat1} ${prob_mat1} ${d_mat2} ${prob_mat2} region reg3 vel 0 0 0 0 -3
 
 # calculate total kinetic energy due to translation over all particles, computation name is ‘1’
