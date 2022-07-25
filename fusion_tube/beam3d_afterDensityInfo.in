@@ -1,0 +1,106 @@
+# mpirun -np 4 lmp_mpi -in beam3d_largerSpheres.in
+# Particle sizes
+variable num_dia equal 1
+variable d_GC equal 1.31 # change to insert 2238 sphere when z_pour = 40
+variable prob_GC equal 1
+
+# Geometry-related parameters
+variable center_x equal 0
+variable center_y equal 0
+variable pour_radius equal 4.6
+variable radius equal ${pour_radius}+1
+variable zlo equal 0
+variable zpour equal 43
+variable zhi equal ${zpour}+2
+
+# Simulation variables
+variable num_particles equal 400000
+variable seed equal 1
+variable target_vf equal 0.5
+variable max_iters equal 500
+variable max_steps equal 50000
+variable out_freq equal ${max_steps}/50
+variable dt equal 0.01
+#####################################################################
+
+## Example 1: Pour grains
+# Code is adapted from https://github.com/lammps/lammps/blob/master/examples/pour/in.pour
+# More command details in the documentation https://lammps.sandia.gov/doc/Commands.html
+# tell LAMMPS we are simulating finite-size particles, which has default density=1 and diameter=1
+atom_style sphere
+
+# the simulation is periodic (p) in x and y, and fixed (f) in z direction
+boundary p p f
+newton off
+comm_modify vel yes
+
+# define a rectangular region named ‘reg’ with span [-3,3]*[-2,2]*[0,9] in x,y and z
+region reg cylinder z ${center_x} ${center_y} ${radius} ${zlo} ${zhi} units box
+
+# create simulation domain using the region ‘reg’ and specify 1 particle type
+create_box 1 reg
+
+# set neighbor skin distance to 0.2 for all spheres. Spheres those are close enough (≤0.2) are stored in the neighbor list
+neighbor 0.2 bin
+
+# this command ensures the neighbor list is checked every step of integration for new neighbors
+# neigh_modify delay 0
+
+# Particle interaction: Hertzian contact, modulus=200.0, damping=5.0, history-dependent friction with coefficient 0.5
+pair_style gran/hertz/history 3000.0 NULL 100 NULL 0.5 1
+pair_coeff * *
+
+# the time of each integration step is dt=0.01 while the unit of time is 1 by default.
+timestep ${dt}
+
+# define constant number/volumn/energy integration for sphere, i.e. F=ma
+# the name of this command is called ‘1’ and it is applied to all particles.
+fix 1 all nve/sphere
+
+# add gravity of magnitude 1.0 and in -z direction to all particles, command name is ‘2’
+fix 2 all gravity 1.0 spherical 0.0 -180.0
+
+# define a rectangular region named ‘reg2’ with span [-3,3]*[-2,2]*[0,9] in x,y and z
+# the ‘open 6’ removes the top face (+z face) of the box, so it is open to hold particles
+region reg2 cylinder z ${center_x} ${center_y} ${radius} ${zlo} ${zhi} units box open 2
+
+# define a wall to interact with particles using predefined region ‘reg2’
+# The force law of the wall is specified in the same way as particle interaction. Command name is ‘3’
+fix 3 all wall/gran/region hertz/history 200.0 200.0 5.0 5.0 0.5 1 region reg2
+region reg3 cylinder z ${center_x} ${center_y} ${pour_radius} ${zpour} ${zhi} units box
+
+# Pour particles randomly. It pours 60 particles of one type (type 1). Random seed=1 (positive integer). Volume fraction
+# of the pouring 0.13, and it tries upto 50 times for each particle to be inserted without overlapping with existing particles.
+# Particles are insert in ‘reg3’, and the initial velocity is 0≤Vx≤0, 0≤Vy≤0 and Vz=-3. The command name is ‘ins’.
+fix ins all pour ${num_particles} 1 ${seed} vol ${target_vf} ${max_iters} diam poly ${num_dia} ${d_GC} ${prob_GC} region reg3 vel 0 10 0 10 -0.1
+
+# calculate total kinetic energy due to translation over all particles, computation name is ‘1’
+compute 1 all ke
+
+# calculate total kinetic energy due to rotation over all particles, computation name is ‘2’
+compute 2 all erotate/sphere
+
+# specify run-time output items: integration step, number of particles, the value of computation ‘1’ and ‘2’
+thermo_style custom step atoms c_1 c_2
+
+# output these items every 100 step
+thermo ${out_freq}
+
+# display a warning it particle is lost (e.g. move out of a fixed simulation box)
+# do not normalize extensive values (such as ‘1’ and ‘2’) by the number of particles
+thermo_modify lost warn norm no
+
+# # minimizer type
+# min_style cg
+# delete_atoms overlap 10.3 all all
+# delete_atoms region reg3 compress no
+
+# output a snapshot (image) of the simulation every 50 step. The output image name is pour_*.jpg, where * is the
+# current simulation step. Zoom the view by a factor of 1.8
+# particle color follows particle type. In this case, all particles are of type 1, and the color of type 1 is red by default.
+# drawing particle diameter follows physical particle diameter. In this case, all particles have diameter 1.
+dump 1 all custom ${out_freq} out/beam3d_afterDensityInfo_out.* x y z radius
+dump 2 all image ${out_freq} out/beam3d_afterDensityInfo*.jpg type diameter zoom 1.8
+
+# last command: integrate the equation of motion (F=ma) for 1500 step
+run ${max_steps}
