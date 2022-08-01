@@ -7,14 +7,14 @@ variable prob_GC equal 1
 # Geometry-related parameters
 variable center_x equal 0
 variable center_y equal 0
-variable pour_radius equal 2
+variable pour_radius equal 4.6
 variable radius equal ${pour_radius}+1
 variable zlo equal 0
-variable zpour equal 10
+variable zpour equal 43
 variable zhi equal ${zpour}+2
 
 # Simulation variables
-variable num_particles equal 400
+variable num_particles equal 400000
 variable seed equal 1
 variable target_vf equal 0.5
 variable max_iters equal 500
@@ -47,7 +47,7 @@ neighbor 0.2 bin
 # neigh_modify delay 0
 
 # Particle interaction: Hertzian contact, modulus=200.0, damping=5.0, history-dependent friction with coefficient 0.5
-pair_style gran/hertz/history 200.0 200.0 5.0 5.0 0.5 1
+pair_style gran/hertz/history 3000.0 NULL 100 NULL 0.5 1
 pair_coeff * *
 
 # the time of each integration step is dt=0.01 while the unit of time is 1 by default.

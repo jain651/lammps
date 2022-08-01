@@ -1,16 +1,16 @@
 # mpirun -np 4 lmp_mpi -in beam3d_largerSpheres.in
 # Particle sizes
 variable num_dia equal 1
-variable d_GC equal 1.31 # change to insert 2238 sphere when z_pour = 40
+variable d_GC equal 1.042 # change to insert 2370 sphere when z_pour = 40
 variable prob_GC equal 1
 
 # Geometry-related parameters
 variable center_x equal 0
 variable center_y equal 0
-variable pour_radius equal 4.6
-variable radius equal ${pour_radius}+1
+variable pour_radius equal 4.6-0.5*${d_GC}
+variable radius equal ${pour_radius}
 variable zlo equal 0
-variable zpour equal 43
+variable zpour equal 40
 variable zhi equal ${zpour}+2
 
 # Simulation variables
